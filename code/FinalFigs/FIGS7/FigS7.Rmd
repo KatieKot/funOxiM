@@ -1,0 +1,126 @@
+```{r}
+library(pacman)
+p_load(data.table, dplyr, ggplot2, cowplot, scales, reshape, ggpubr, svglite, ggforce, rstatix, lme4)
+source("../common.R")
+theme_set(theme_gray())
+d <- readRDS("dataFigS7.RDS")
+```
+
+```{r}
+###############################################################################
+#  TE MOD IN CLUSTERS
+###############################################################################
+stat.test <- d[[2]]
+
+fig_repModKlast <- ggplot(d[[1]], aes(modification, Fraction, color=cluster_stat)) +
+    geom_boxplot(outlier.size=0.5) +
+    theme_Publication() +
+    ylab("fraction") +
+    ylim(c(0, 1.2)) +
+    scale_color_manual(values=col_clusters) +
+    facet_grid(cols=vars(Org), 
+               scales="free", 
+               space="free_x") +
+    stat_pvalue_manual(stat.test) +
+          theme(
+          axis.title.x=element_blank(), 
+          legend.position="bottom", 
+          panel.spacing=unit(0.3, "lines"),
+          strip.text.x=element_text(face = "italic"),
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          strip.text=element_text(vjust=0, margin = margin(t=0, b=0, r=0, l=0)),
+          legend.title= element_blank()
+          ) 
+         
+```
+
+```{r}
+###############################################################################
+#    Rep Mod by Exp group
+###############################################################################
+dat_text <- d[[4]]
+
+fig_repModVSExp <- ggplot(d[[3]], aes(grupe, mod)) +
+  geom_boxplot(outlier.size=0.5) +
+  ylim(c(0, 1.2)) +
+  facet_grid(cols=vars(vardas), 
+             labeller=label_parsed
+             ) +
+  scale_color_manual(values=col_clusters) +
+  theme_Publication(base_size=10) +
+  ylab("fraction") +
+  theme(axis.title.x = element_blank(), 
+        panel.spacing=unit(0.3, "lines"),
+        legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+        strip.text=element_text(vjust=0, margin = margin(t=0, b=1, r=0, l=0)),
+        strip.background=element_blank() 
+  ) +
+  geom_text(data    = dat_text,  mapping = aes(x = "Q0", y = 1.15, label = r2),    hjust   = 0, size    = 2.5, vjust   = 0, parse = TRUE ) +
+  geom_text(data    = dat_text,  mapping = aes(x = "Q0", y = 1.05, label =  pval), hjust   = 0, size    = 2.5, vjust   = 0, parse = TRUE )
+```   
+
+
+```{r}
+###############################################################################
+#    FRACTION VS EXPRESSION
+###############################################################################
+stat.test <- d[[6]]
+
+fig_fractionVSExpression <-  ggplot(d[[5]], aes(grupe, fraction, color=type)) + 
+    geom_boxplot(outlier.size=0.5) +
+    ylab("fraction") +
+    facet_grid(cols=vars(vardas), 
+               labeller=label_parsed) +
+    theme_Publication(base_size=10) +
+    scale_color_manual(values=col_clTE) +
+    expand_limits(y = c(1, 1.15)) +
+    annotate("text", x=-Inf, y=1.05, label=paste0("italic(p-value) <= 0.05"), parse=TRUE, size=2.5, hjust=-0.1, vjust=0) +      
+    theme(axis.title.x=element_blank(), 
+         strip.background=element_blank(),
+         legend.position="right", 
+         legend.title=element_blank(),
+         legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+         strip.text=element_text(vjust=0, margin = margin(t=0, b=0, r=0, l=0)),
+         panel.spacing=unit(0.3, "lines")
+         )
+```
+
+```{r}
+###############################################################################
+#   mod vs exp.
+###############################################################################
+fig_didele_D  <- ggplot(d[[7]], aes(grupe, TPM_wt), with=FALSE) +
+    geom_boxplot(outlier.size=0.5) +
+    facet_grid(vars(organism), vars(mCgrupe), ) + 
+    theme_Publication() +
+    xlab(expression(paste(log[2], "(5fC/5hmC modification)"))) +
+    ylab(expression(paste(log[2], "(TPM+1)"))) +
+     theme(legend.position = "none",
+           plot.subtitle=element_text(hjust = 0.5),
+           plot.tag=element_text(size=18),
+           axis.text.x = element_text(size=9, angle=90, hjust=1, vjust=1), 
+           legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+           strip.text=element_text(vjust=0.5, margin = margin(t=0, b=1, r=0, l=0)),           
+           strip.text.y=element_text(angle = 90))        
+```
+
+```{r}
+#x11(width=7, height=7)
+p <- ggdraw() +
+  draw_plot(fig_repModKlast, 12/300, 225/300, 110/300, 65/300) + 
+  draw_plot(fig_repModVSExp, 127/300, 225/300, 163/300, 65/300) +
+  draw_plot(fig_fractionVSExpression, 10/300, 150/300, 280/300, 65/300)    +
+  draw_plot(fig_didele_D, 10/300, 10/300, 280/300, 125/300)  +
+  draw_text("5mC gene modification", 155/300, 140/300, size=10) +
+  draw_plot_label(
+    family = "Helvetica", size = 16,
+    LETTERS[1:4],
+    c(7/300, 123/300, 10/300, 10/300),
+    c(295/300, 295/300, 225/300, 140/300))    
+  
+ggsave(paste0("../FigS7.tiff"),
+  width = 178, height = 180, units = "mm", dpi = 300
+)
+```
+
+

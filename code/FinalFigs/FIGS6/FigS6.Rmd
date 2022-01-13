@@ -1,0 +1,136 @@
+```{r}
+library(pacman)
+p_load(data.table, dplyr, ggplot2, cowplot, scales, reshape, ggpubr, svglite, ggforce, rstatix)
+source("../common.R")
+theme_set(theme_gray())
+d <- readRDS("./dataFigS6.RDS")
+```
+
+```{r}
+###############################################################################   
+# Feature Coverage
+###############################################################################   
+fig_featCov <- d[[1]] %>% 
+  ggplot(., aes(mapping, fraction,  alpha=reps)) +
+    scale_alpha_discrete(range = c(0.35, 1)) +
+    geom_col() + 
+    theme_Publication() +  
+    ylab("%") +
+    facet_grid(vars(sample), vars(feat)) +
+    theme(
+          plot.tag.position = c(0.05, 0.95),
+          strip.text.y = element_text(angle=90, size=9),
+          strip.text.x = element_text(angle=90, size=9),
+          strip.text=element_text(vjust=0, margin = margin(t=0, b=0, r=0, l=0)),
+          axis.title.x = element_blank(),
+          strip.background=element_blank(), 
+          legend.position = "bottom", 
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          legend.title= element_blank(),
+          axis.text.y=element_text(size=9),
+          axis.text.x = element_text(angle=90, vjust=0.5, hjust = 1, size=9))
+```
+
+```{r}
+###############################################################################   
+# Enricgment on repeats. Full
+############################################################################### 
+fig_enrichment_reps_full <- ggplot(d[[2]], aes(feature, logOD, shape=sign, color=sample)) +
+    geom_point(size=1.5, position=position_jitter(width=0.3, height=0.0)) +
+    scale_color_brewer(palette="Paired")  +
+    ylim(c(-2, 4)) +
+    scale_fill_brewer(palette="Paired")  +
+    scale_shape_manual(values=c(4, 16), guide=FALSE) +
+    geom_hline(yintercept = 0, color = "orange4", size=0.5, linetype="dashed") +
+    ylab(bquote('OR,' ~log[2])) + 
+    theme_Publication() +
+    guides(color=guide_legend(nrow=2, byrow=TRUE)) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust=1, size=9), 
+          axis.text.y = element_text(size=9), 
+          axis.title.x = element_blank(), 
+          legend.position="bottom", 
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          legend.title= element_blank(),
+          strip.text=element_text(vjust=0, margin = margin(t=0, b=0, r=0, l=0)),
+          strip.text.y=element_text(angle=270, size=9))               
+```
+
+
+
+```{r}
+###############################################################################
+# Expression based on Uniqness
+############################################################################### 
+stat.test <- d[[6]]
+
+fig_raiska_klasteriai <- ggplot(d[[3]], aes(organizmas, raiska, color=paral)) +
+    geom_boxplot(outlier.size=0.5) +
+    theme_Publication() +
+    scale_color_manual(values=col_multi) +
+    ylab("log2 (TPM + 1)") +
+    stat_pvalue_manual(stat.test) +
+    guides(color=guide_legend(title="Uniqness")) +
+    theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(size=9),
+          axis.text.y = element_text(size=9),
+          legend.title= element_blank(),
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          strip.text=element_text(vjust=0, margin = margin(t=0, b=0, r=0, l=0)),
+          legend.position="bottom", 
+          strip.background=element_blank())    
+```
+
+```{r}
+###############################################################################
+# Modification based on Paralogs
+############################################################################### 
+stat.test <- d[[5]]
+
+fig_mod_klasteriai <- ggplot(d[[4]], aes(modification, Frak, color=paral)) +
+    geom_boxplot(outlier.size=0.5) +
+    theme_Publication() +
+    ylab("fraction") +
+    scale_color_manual(values=col_multi) +
+    stat_pvalue_manual(stat.test) +
+    guides(color=guide_legend(title="Uniqness")) +
+    facet_grid(~organizmas, scales="free", space="free") + 
+    theme(
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(size=9),
+          axis.text.y = element_text(size=9),
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          strip.text=element_text(vjust=0, margin = margin(t=0, b=0, r=0, l=0)),
+          legend.title= element_blank(),
+          legend.position="bottom", 
+          strip.background=element_blank()
+          ) 
+```
+
+```{r}
+fig_lower <- ggarrange(fig_mod_klasteriai, fig_raiska_klasteriai,
+                       ncol=2,
+                       nrow=1, 
+                       common.legend = TRUE, 
+                       legend="bottom", 
+                       widths = c(3/5, 2/5))
+```
+
+```{r}
+##x11(width=7, height=7)
+px <- 
+  ggdraw() +
+  draw_plot(fig_featCov, 10/300, 130/300, 120/300, 160/300) +
+  draw_plot(fig_enrichment_reps_full, 135/300, 130/300, 157/300, 150/300) +
+  draw_plot(fig_lower, 10/300, 10/300, 280/300, 110/300) +
+  draw_plot_label(
+    family = "Helvetica", size = 16,
+    LETTERS[1:4],
+    c(10/300, 135/300, 10/300, 180/300),
+    c(290/300, 290/300, 130/300, 130/300))    
+  
+ggsave(paste0("../FigS6.tiff"),
+  width = 178, height = 180, units = "mm", dpi = 300
+)
+
+```
