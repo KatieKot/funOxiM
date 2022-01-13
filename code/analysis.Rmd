@@ -4,6 +4,8 @@ p_load(data.table, dplyr, GenomicRanges, ggcorrplot, GenomicFeatures, ggplot2, R
 ```
 
 ```{r}
+# Define paths to your input files. 
+
 # This file should include NCBI CD search (batch) results.
 path2TET <- "./input/CDD_search.txt"  
 # Annotation per CG file.
@@ -22,6 +24,7 @@ d <- readRDS("./output/prep_data/gene_matrix.RDS")
 
 ```{r}
 # Figure 3D. Modification fraction in genes with TPM <= 0.05 and TPM > 0.05. 
+# Divide genes into two groups based on TPM threshold.
 as.data.table(d) %>% 
   .[, c("TPM_wt", meginiai), with=FALSE] %>%
   .[, expression := "Expressed"] %>% 
@@ -62,6 +65,8 @@ tmp <- TETAI[, c(meginiai, "TPM_wt"), with=FALSE ] %>%
 
 ```{r}
 # Figure 3B. Genome structue. 
+# Number of CGs falling into different genomic regions. 
+# To calculate per base statistics, use per base annotation file (similar to path2CGan) 
 dt <-readRDS(path2CGan) 
 CpG_table <- dt %>% 
   data.frame %>% 
@@ -86,7 +91,6 @@ ggplot(dt, aes(Org, CpGs, fill=feature)) +
 
 ```{r}
 # Figure 3E. oxi-mCs versus mCG fractions
-# mC is divided into groups.
 add_decile_real <- function(x, kieno, kvantiliai=c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)) {
   x[, grupe := "Kita"] %>% 
     .[get(kieno) > 0 & get(kieno) <= kvantiliai[1], grupe := "D1"] %>% 
@@ -123,8 +127,7 @@ melt(dt, measure.vars=c(meginiai)) %>%
 
 ```{r}
 # Figure 3A. Enrichment. 
-# Simple enrichment using Fisher's exac test. This part uses CpG level file 
-# with coverages. 
+# Simple enrichment using Fisher's exac test. 
 
 getODs <- function(x, feature, notFeature, name, th) {
   type <- "any"
@@ -202,20 +205,22 @@ as.data.table(d) %>%
   ```
 
 ```{r}
-# Figure 4C and 4D. Fraction and expression based on TE possition. 
+# Figure 4C and 4D. Gene fraction and expression based on TE possition. 
 '%!in%' <- function(x, y)!('%in%'(x, y))
 
 get_frac <- function(x, th=0) {
   return(sum(x>th)/sum(x>=0))
 }
 
-atstumas <- 1000 # distance
+atstumas <- 1000 # distance to count as "near"
+#get genes coordinates from IDs and make GRanges object.
+
 genai <- d %>% 
   .[, chr := strsplit(koord, "_") %>% sapply(., `[`, 1)] %>%
   .[, start := strsplit(koord, "_") %>% sapply(., `[`, 2)] %>%
   .[, end := strsplit(koord, "_") %>% sapply(., `[`, 3)] %>%
   .[, strand := strsplit(koord, "_") %>% sapply(., `[`, 4)] %>%
-  makeGRangesFromDataFrame(., keep.extra.columns=TRUE)
+  makeGRangesFromDataFrame(., keep.extra.columns=TRUE) 
 
 repGFF <- fread(path2reps, skip=3) %>%
             .[, V2 := NULL] %>% 
@@ -230,6 +235,7 @@ repGFF <- fread(path2reps, skip=3) %>%
             .[grepl("family", family)] %>%
             .[, c("chr", "start", "end", "strand", "name", "family", "ID"), with=FALSE] %>%
              makeGRangesFromDataFrame(., keep.extra.column=TRUE)
+
 
 m <- findOverlaps(repGFF, dcov, ignore.strand=TRUE, select="all")
 genome_matched <- repGFF[queryHits(m)];
@@ -246,6 +252,8 @@ fracReps <- fracReps[, chr := strsplit(koord, "_") %>% sapply(., `[`, 1)] %>%
   .[, strand := "*"] %>%
   makeGRangesFromDataFrame(., keep.extra.columns=TRUE)
 
+# Extend genes by atstumas. This is used to find nearby TE. 
+# Possible to use findOverlaps with paramethers. 
 ilgi_genai <- genai + atstumas
 svarus_genai <- genai[countOverlaps(ilgi_genai, repGFF, ignore.strand=TRUE) == 0]
 svarus_genai$tipas <- "clean"

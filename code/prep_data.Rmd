@@ -5,6 +5,8 @@
 Janina Ličytė, Kotryna Kvederavičiūtė, Audronė Rukšėnaitė, Eglė Godliauskaitė, Povilas Gibas, Vita Tomkutė, Gražina Petraitytė, Viktoras Masevičius, Saulius Klimašauskas, Edita Kriukienė
 Open Biology (2022), DOI: 10.1098/rsob.20160049
 
+Same code is used to analyse single and multi mapping data.
+
 
 ```{r, paths2files}
 ## Define paths to input files
@@ -18,8 +20,6 @@ path2RNA <- "./input/"
 path2reps <- "./input/reps.out.gff"
 # File with paralogues gene IDs (exact pairs are not indicated) 
 path2paralogs <- "./input/paral.ID"
-# Path to uniq genes file
-path2uniq <- "./input/gene.stat"
 # Path to file with clusters (or any other interesting) regions
 path2clusters <- "./input/cluster_ranges.RDS"
 # Path to mC coverage per CpG data
@@ -85,6 +85,7 @@ files <- paste0(path2RNA, c("sample1_RNA.gtf"))
 # code that it would merge all samples into 
 # a common table and/or calculate average or 
 # other statistics. 
+# TPMs were calculated using STRINTIE (rna_seq.sh file)
 tpmai <- get_TPM(files[1], "wt1") %>% 
   setnames(., c("geneID", "TPM_wt")) %>%
   .[, c("TPM_wt", "geneID"), with=FALSE]
@@ -143,12 +144,7 @@ paralog <- fread(path2paralogs, header=FALSE) %>%
   setnames(., c("proteinID")) %>% 
   .[, proteinID := as.character(proteinID)] %>%
   .[, paral := "Multi"]
-
-# This one is based on DNA matches (BLAST again)
-uniqunes <- fread(path2uniq) %>% 
-  setnames(., c("proteinID", "gene_name", "uniqness") )
-uniqunes$proteinID <- as.character(uniqunes$proteinID)
-uniqunes <- merge(uniqunes, paralog, all.y=TRUE) %>% 
+uniqunes <- paralog %>% 
   .[is.na(paral), paral:= "Single"]
 
 # clusters status. 

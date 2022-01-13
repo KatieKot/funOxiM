@@ -4,6 +4,8 @@ p_load(data.table, dplyr, GenomicRanges, ggcorrplot, GenomicFeatures, ggplot2, R
 ```
 
 ```{r}
+# Define paths to your input files.
+
 # This file should include NCBI CD search (batch) results.
 path2TET <- "./input/CDD_search.txt"  
 # Annotation per CG file.
@@ -29,13 +31,12 @@ d <- readRDS("./output/prep_data/gene_matrix.RDS")
 dcov <- readRDS(path2coverage) %>% 
   .[, end := start +1] %>% 
   makeGRangesFromDataFrame(., keep.extra.column=TRUE)
-
 ```
 
 ```{r}
 # Figure S6A. Genomic features coverage. 
 # Original data was generated for longe list of features and fo single and multimapping data. 
-# Features list example.
+# Features list is an example here.
 features <- c("genes_NoRep", "genes_Rep")
 CpG_table <- readRDS(path2CGan)
 
@@ -110,10 +111,11 @@ d[, c(meginiai, "paral"), with=FALSE] %>%
 ```
 
 ```{r}
-# Figure S7A. Repeats-regions modification fraction in clusters and not
+# Figure S7A. Repeats/TE modification fraction in clusters and not
 get_frac <- function(x, th=0) {
   return(sum(x>th)/sum(x>=0))
 }
+# Get individual repeats 
 repGFF <- fread(path2reps, skip=3) %>%
             .[, V2 := NULL] %>% 
             .[, V3 := NULL] %>% 
@@ -128,6 +130,7 @@ repGFF <- fread(path2reps, skip=3) %>%
             .[, c("chr", "start", "end", "strand", "name", "family", "ID"), with=FALSE] %>%
              makeGRangesFromDataFrame(., keep.extra.column=TRUE)
 
+# Calculate fraction
 m <- findOverlaps(repGFF, dcov, ignore.strand=TRUE, select="all")
 genome_matched <- repGFF[queryHits(m)];
 mcols(genome_matched) <- cbind.data.frame(
