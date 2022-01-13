@@ -24,4 +24,4 @@ The main input is the coverage matrix, which represents CG coverages matrix. Dat
 
 ### Final figures
 
-Codes and data to generate figures from the are present in the directory FinalFigures. Each figure has a directory with RMD and RDS files necessary to generate the figure. Figures not generated with R are not included.
+Codes and data to generate figures from the are present in the directory FinalFigures (individual directories for Main and Supplemenary figures). Each figure has a directory with RMD and RDS (in most cases) files necessary to generate the figure. Figures not generated with R are not included.
