@@ -1,0 +1,13 @@
+#Batch CD-search tool	NIH/NLM/NCBI
+#cdsid	QM3-qcdsearch-1EB606D4EDAC4BE9-17AF22B0BF155C46
+#datatype	hitsFull Results
+#status	0
+#Start time	2021-02-02T09:20:24	Run time	0:00:02:09
+#status	success
+Query	Hit type	PSSM-ID	From	To	E-Value	Bitscore	Accession	Short name	Incomplete	Superfamily
+Q#26 - >475016	specific	372343	171	337	3.95066e-56	180.655	pfam12851	Tet_JBP	 - 	cl24253
+Q#26 - >475016	superfamily	372343	171	337	3.95066e-56	180.655	cl24253	Tet_JBP superfamily	 - 	 - 
+Q#26 - >475016	non-specific	372343	171	337	3.95066e-56	180.655	pfam12851	Tet_JBP	 - 	cl24253
+Q#26 - >475016	non-specific	380670	111	337	0.00616706	37.7453	cd14946	Tet_JBP	 - 	cl40427
+Q#26 - >475016	superfamily	394797	111	337	0.00616706	37.7453	cl40427	Tet_JBP superfamily	 - 	 - 
+Q#26 - >475016	non-specific	380670	111	337	0.00616706	37.7453	cd14946	Tet_JBP	 - 	cl40427

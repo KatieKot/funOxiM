@@ -1,0 +1,392 @@
+```{r}
+library(pacman)
+p_load(data.table, dplyr, GenomicRanges, ggcorrplot, GenomicFeatures, ggplot2, RColorBrewer, foreach)
+```
+
+```{r}
+# This file should include NCBI CD search (batch) results.
+path2TET <- "./input/CDD_search.txt"  
+# Annotation per CG file.
+path2CGan <- "./input/CG_annotations.RDS"
+# Samples to be analyzed.
+meginiai <- c("LB_k0_hmC", "LB_k0_fC")
+# Chromosomes to use. LG10 is used as an example.
+chr2use <- "LG10"
+# Same genomic freatus gff3 file
+path2reps <- "./input/reps.out.gff"
+# Same coverage file as in prep_data
+path2coverage <- "./input/coverage_data.RDS"
+# Genomic freatus gff3 file
+path2GFF3 <- "./input/genome.gff3"
+# Samples to be analyzed.
+meginiai <- c("LB_k0_hmC", "LB_k0_fC")
+# Path to file with clusters (or any other interesting) regions
+path2clusters <- "./input/cluster_ranges.RDS"
+# chromosomes lengths. Best way to get it - samtools faidx
+genome_size <- c(chr="LG10", start=1, end=4309560)
+d <- readRDS("./output/prep_data/gene_matrix.RDS")
+
+dcov <- readRDS(path2coverage) %>% 
+  .[, end := start +1] %>% 
+  makeGRangesFromDataFrame(., keep.extra.column=TRUE)
+
+```
+
+```{r}
+# Figure S6A. Genomic features coverage. 
+# Original data was generated for longe list of features and fo single and multimapping data. 
+# Features list example.
+features <- c("genes_NoRep", "genes_Rep")
+CpG_table <- readRDS(path2CGan)
+
+x <- foreach (i=1:length(features)) %do% { 
+    feature <- features[i]
+    j <- data.frame(CpG_table) %>% 
+      as.data.table() %>% 
+      .[, feature, with=FALSE] %>%
+      unlist()
+
+    rez <- rbind(
+      (table(mcols(dcov)[, meginiai[1]][j]>0) %>% 
+        as.data.frame %>% 
+        as.data.table %>% 
+        .[, feature := paste0(feature)] %>%
+        .[, meginys := meginiai[1]]), 
+      (table(mcols(dcov)[, meginiai[2]][j]>0) %>% 
+        as.data.frame %>% 
+        as.data.table %>% 
+          .[, feature := paste0(feature)] %>%
+          .[, meginys := meginiai[2]])     
+    )
+    return(rez) 
+}
+
+dd <- rbindlist(x) 
+modifikuoti <- dd[Var1 == TRUE] %>% .[, poz := strsplit(feature, "_") %>% sapply(., `[`, 1) %>% as.character()]
+CpG_kiekis <- dd[, poz := strsplit(feature, "_") %>% sapply(., `[`, 1) %>% as.character()] %>%
+  .[, lapply(.SD, sum), by=c("meginys", "poz"), .SDcols=c("Freq")] %>%
+  .[meginys == meginiai[1], ]
+
+merge(modifikuoti, CpG_kiekis, by="poz", all.x=TRUE) %>% 
+  .[, `:=` (Var1 = NULL, meginys.y = NULL)] %>%
+  .[, frequency := Freq.x/Freq.y*100] %>% 
+  .[, `:=` (Freq.x = NULL, Freq.y = NULL)] %>%
+  setnames(., c("feat", "feature", "meginys", "fraction")) %>%
+  .[, type := "type"] %>% 
+  .[, reps := strsplit(feature, "_") %>% sapply(., `[`, 2)] %>%
+  .[, feat := strsplit(feature, "_") %>% sapply(., `[`, 1)] %>%
+  ggplot(., aes(type, fraction,  alpha=reps)) +
+    scale_alpha_discrete(range = c(0.35, 1)) +
+    geom_col() + 
+    facet_grid(vars(meginys), vars(feat))
+```
+
+```{r}
+# Figure S6B.
+# This figure was created in a same way as Fig3A. 
+```
+
+```{r}
+# Figure S6C. Expression vs uniqness.
+d[, c("TPM_wt", "paral"), with=FALSE] %>%
+  melt(., measure.vars="TPM_wt") %>%
+  setnames(., c("paral", "meginys", "raiska")) %>%
+  .[, raiska := log2(raiska + 1)]  %>% 
+  .[, organism := "LB"] %>% 
+  ggplot(., aes(organism, raiska, color=paral)) +
+    geom_boxplot(outlier.size=0.5) +
+    ylab("log2 (TPM + 1)") 
+```
+
+```{r}
+# Figure S6D. Modification vs uniqness 
+d[, c(meginiai, "paral"), with=FALSE] %>%
+  melt(., measure.vars=meginiai) %>%
+  setnames(., c("paral", "meginys", "Frak")) %>%
+  .[, meginys := gsub("LB_", "", meginys)] %>% 
+  ggplot(., aes(meginys, Frak, color=paral)) +
+    geom_boxplot(outlier.size=0.5) +
+    ylab("fraction")
+```
+
+```{r}
+# Figure S7A. Repeats-regions modification fraction in clusters and not
+get_frac <- function(x, th=0) {
+  return(sum(x>th)/sum(x>=0))
+}
+repGFF <- fread(path2reps, skip=3) %>%
+            .[, V2 := NULL] %>% 
+            .[, V3 := NULL] %>% 
+            .[, V6 := NULL] %>% 
+            .[, V8 := NULL] %>% 
+            .[, V1 := gsub("_", "", V1)] %>%
+            .[, family := strsplit(V9, " ") %>% sapply(., `[`, 2) %>% gsub("Motif:", "", .) %>% gsub("\"", "", .) ] %>%
+            .[, ID := paste0(V1, "_", V4, "-", V5)] %>%
+            setnames(., c("chr", "start", "end", "strand", "name", "family", "ID")) %>% 
+            .[chr %in% chr2use] %>%
+            .[grepl("family", family)] %>%
+            .[, c("chr", "start", "end", "strand", "name", "family", "ID"), with=FALSE] %>%
+             makeGRangesFromDataFrame(., keep.extra.column=TRUE)
+
+m <- findOverlaps(repGFF, dcov, ignore.strand=TRUE, select="all")
+genome_matched <- repGFF[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(dcov[subjectHits(m)]));
+x <- data.frame(genome_matched) %>% as.data.table
+fracReps <- x[, lapply(.SD, get_frac), .SDcol=c(meginiai), by="ID"]
+setnames(fracReps, paste0("", names(fracReps)))
+colnames(fracReps)[1] <- "koord"
+fracReps <- fracReps[, chr := strsplit(koord, "_") %>% sapply(., `[`, 1)] %>%
+  .[, start := strsplit(koord, "_") %>% sapply(., `[`, 2) %>% strsplit(., "-") %>% sapply(., `[`, 1) ] %>%
+  .[, end := strsplit(koord, "_") %>% sapply(., `[`, 2) %>% strsplit(., "-") %>% sapply(., `[`, 2) ] %>%
+  .[, strand := "*"] %>%
+  makeGRangesFromDataFrame(., keep.extra.columns=TRUE)
+
+cluster_ranges <- readRDS(path2clusters)
+
+i <- countOverlaps(fracReps, cluster_ranges, maxgap=500)
+i <- as.logical(i) %>% as.character 
+mcols(fracReps)$ClusterStatus <- i
+
+data.frame(fracReps) %>% 
+  as.data.table %>% 
+  .[, c(meginiai, "ClusterStatus"), with=FALSE] %>% 
+  melt() %>% 
+  .[ClusterStatus == "FALSE", cluster_stat := "NotCluster"] %>% 
+  .[ClusterStatus == "TRUE", cluster_stat := "Cluster"] %>% 
+  .[, ClusterStatus := NULL] %>% 
+  setnames(., c("meginys", "Fraction", "cluster_stat")) %>% 
+  ggplot(., aes(meginys, Fraction, color=cluster_stat)) +
+    geom_boxplot(outlier.size=0.5) +
+    ylim(c(0, 1.2)) +
+    facet_grid(cols=vars(meginys), 
+               scales="free", 
+               space="free_x") 
+```
+
+```{r}
+# Figure S7B.
+add_quantile_TPM <- function(x, kieno, kvantiliai=c(0.25, 0.5, 0.75)) {
+  kvantiliai <- quantile(x[get(kieno)>0, get(kieno)], kvantiliai)
+  x[, grupe := "Kita"] %>% 
+    .[get(kieno) > 0 & get(kieno) <= kvantiliai[1], grupe := "q<0.25"] %>% 
+    .[get(kieno) > kvantiliai[1] & get(kieno) <= kvantiliai[2], grupe := "0.25<q<0.5" ] %>% 
+    .[get(kieno) > kvantiliai[2] & get(kieno) <= kvantiliai[3], grupe := "0.5<q<0.75"] %>%     .[get(kieno) > kvantiliai[3], grupe := "q>0.75"] %>% 
+    .[get(kieno) ==  0, grupe := "q=0"] %>%     .[, grupe := factor(grupe, levels=c("q=0", "q<0.25", "0.25<q<0.5", "0.5<q<0.75", "q>0.75"))]
+  return(x)}
+  
+genai <- readRDS("./output/prep_data/gene_matrix.RDS") %>% 
+  .[, chr := strsplit(koord, "_") %>% sapply(., `[`, 1)] %>%
+  .[, start := strsplit(koord, "_") %>% sapply(., `[`, 2)] %>%
+  .[, end := strsplit(koord, "_") %>% sapply(., `[`, 3)] %>%
+  .[, strand := strsplit(koord, "_") %>% sapply(., `[`, 4)] %>%
+  makeGRangesFromDataFrame(., keep.extra.columns=TRUE)
+atstumas <- 1000
+atstumai <- distanceToNearest(genai, fracReps, ignore.strand=TRUE)
+i <- mcols(atstumai)$distance < atstumas
+
+
+drep <- cbind(
+  (as.data.frame(genai[i]) %>% 
+    as.data.table %>% 
+    .[, c("TPM_wt", "koord"), with=FALSE]), 
+  (as.data.frame(fracReps[subjectHits(atstumai)[i]]) %>% 
+    as.data.table)) %>% 
+  .[, c(meginiai, "TPM_wt"), with=FALSE]  
+
+dd <- add_quantile_TPM(drep, "TPM_wt") %>% 
+  .[, TPM_wt := NULL] %>% 
+  melt() %>% 
+  setnames(., c("grupe", "meginys", "mod"))
+ggplot(dd, aes(grupe, mod)) +
+  geom_boxplot(outlier.size=0.5) +
+  ylim(c(0, 1.2)) +
+  facet_grid(cols=vars(meginys)) +
+  ylab("fraction") 
+```
+
+```{r}
+# Figure S7C. 5hmCG/5fCG fractions of expressed (TPM>0.05, Exp) and non-expressed (NoExp)
+d[, c(meginiai, "TPM_wt", "cluster_stat", "repDist"), with=FALSE] %>% 
+    .[, grupe := "Exp"] %>% 
+    .[TPM_wt == 0, grupe := "NoExp"] %>% 
+    .[, repeats := "No reps."] %>% 
+    .[repDist <= 1000, repeats := "With reps."] %>% 
+    .[, repDist := NULL] %>% 
+    .[, TPM_wt := NULL] %>% 
+  melt(., id.vars=c("cluster_stat", "grupe", "repeats")) %>% 
+  .[, tipas := paste0(cluster_stat, repeats)] %>% 
+  .[, tipas := factor(tipas, levels=c("TRUEWith reps.", "TRUENo reps.", "FALSEWith reps.", "FALSENo reps."), 
+                             labels=c("In cluster", "In cluster", "TE+", "TE-"))] %>% 
+  ggplot(., aes(grupe, value, color=tipas)) + 
+    geom_boxplot(outlier.size=0.5) +
+    ylab("fraction") +
+    facet_grid(cols=vars(variable)) 
+```
+```{r}
+# Figure S7D.
+add_decile_mat <- function(d, kieno, kvantiliai=c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)) {
+  x <- copy(d)
+  kvantiliai <- quantile(x[get(kieno)>0, get(kieno)], kvantiliai)
+  x[, grupe := "Kita"] %>% 
+    .[get(kieno) > 0 & get(kieno) <= kvantiliai[1], grupe := "D1"] %>% 
+    .[get(kieno) > kvantiliai[1] & get(kieno) <= kvantiliai[2], grupe := "D2" ] %>% 
+    .[get(kieno) > kvantiliai[2] & get(kieno) <= kvantiliai[3], grupe := "D3"] %>% 
+    .[get(kieno) > kvantiliai[3] & get(kieno) <= kvantiliai[4], grupe := "D4"] %>% 
+    .[get(kieno) > kvantiliai[4] & get(kieno) <= kvantiliai[5], grupe := "D5"] %>% 
+    .[get(kieno) > kvantiliai[5] & get(kieno) <= kvantiliai[6], grupe := "D6"] %>% 
+    .[get(kieno) > kvantiliai[6] & get(kieno) <= kvantiliai[7], grupe := "D7"] %>%  
+    .[get(kieno) > kvantiliai[7] & get(kieno) <= kvantiliai[8], grupe := "D8"] %>% 
+    .[get(kieno) > kvantiliai[8] & get(kieno) <= kvantiliai[9], grupe := "D9"] %>% 
+    .[get(kieno) > kvantiliai[9], grupe := "D10"] %>% 
+    .[get(kieno) ==  0, grupe := "D0"] %>% 
+    .[, grupe := factor(grupe, levels=c("D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10")#,  
+                               #labels=c("0", "0-0.1", "0.1-0.2", "0.2-0.3", "0.3-0.4", "0.4-0.5", "0.5-0.6", "0.6-0.7", "0.7-0.8", "0.8-0.9", "0.9-1")
+                               )]
+  return(x)
+}
+
+# This part should be adjusten when more samples are used. 
+dd <- d %>% 
+  .[, mod_LB_k0_hmC := log2(mod_LB_k0_hmC+1)] %>% 
+  .[, mod_LB_k0_fC := log2(mod_LB_k0_fC+1)] %>% 
+  .[, TPM_wt := log2(TPM_wt+1)] %>%
+  .[, c("TPM_wt", "mC", paste0("mod_", meginiai[1])), with=FALSE] %>%   
+  .[mC > 0, mCgrupe := "(0-0.1]"] %>%
+  .[mC > 0.1, mCgrupe := "(0.1-0.5]"] %>%
+  .[mC > 0.5, mCgrupe := "(0.5-1]"] %>%
+  .[mC == 0., mCgrupe := "0"] %>% 
+  .[, mCgrupe := factor(mCgrupe, levels=c("0", "(0-0.1]", "(0.1-0.5]", "(0.5-1]"))]
+
+d1 <- rbind(add_decile_mat(dd[mCgrupe == "0", ], paste0("mod_", meginiai[1])),
+             add_decile_mat(dd[mCgrupe == "(0-0.1]", ], paste0("mod_", meginiai[1])),
+             add_decile_mat(dd[mCgrupe == "(0.1-0.5]", ], paste0("mod_", meginiai[1])), 
+             add_decile_mat(dd[mCgrupe == "(0.5-1]", ], paste0("mod_", meginiai[1]))) %>% 
+             setnames(., c("TPM_wt", "mC", "modifikacija", "mCgrupe", "grupe")) %>% 
+             .[, organism := "L. b., 5hmC"]
+
+dd <- d %>% 
+  .[, mod_LB_k0_hmC := log2(mod_LB_k0_hmC+1)] %>% 
+  .[, mod_LB_k0_fC := log2(mod_LB_k0_fC+1)] %>% 
+  .[, TPM_wt := log2(TPM_wt+1)] %>%
+  .[, c("TPM_wt", "mC", paste0("mod_", meginiai[2])), with=FALSE] %>%   
+  .[mC > 0, mCgrupe := "(0-0.1]"] %>%
+  .[mC > 0.1, mCgrupe := "(0.1-0.5]"] %>%
+  .[mC > 0.5, mCgrupe := "(0.5-1]"] %>%
+  .[mC == 0., mCgrupe := "0"] %>% 
+  .[, mCgrupe := factor(mCgrupe, levels=c("0", "(0-0.1]", "(0.1-0.5]", "(0.5-1]"))]
+
+d2 <- rbind(add_decile_mat(dd[mCgrupe == "0", ], paste0("mod_", meginiai[2])),
+             add_decile_mat(dd[mCgrupe == "(0-0.1]", ], paste0("mod_", meginiai[2])),
+             add_decile_mat(dd[mCgrupe == "(0.1-0.5]", ], paste0("mod_", meginiai[2])), 
+             add_decile_mat(dd[mCgrupe == "(0.5-1]", ], paste0("mod_", meginiai[2]))) %>% 
+             setnames(., c("TPM_wt", "mC", "modifikacija", "mCgrupe", "grupe")) %>% 
+             .[, organism := "L. b., 5fC"]
+
+rbind(d1, d2) %>% 
+   ggplot(aes(grupe, TPM_wt), with=FALSE) +
+    geom_boxplot() +
+    facet_grid(vars(organism), vars(mCgrupe)) + 
+    xlab(expression(paste(log[2], "(5fC/5hmC modification)"))) +
+    ylab(expression(paste(log[2], "(TPM+1)")))
+```
+
+
+
+```{r}
+# Figure S8A.
+genome_ranges <- makeGRangesFromDataFrame(t(as.data.frame(genome_size)) %>% as.data.frame)
+seqIn <- Seqinfo(seqnames=c("LG10"),
+             seqlengths=c(as.numeric(genome_size[3])),
+             isCircular=c(FALSE))
+txdb <- makeTxDbFromGFF(path2GFF3, format="gff3", chrominfo=seqIn)
+seqlevels(txdb) <- chr2use
+
+genai <- genes(txdb, single.strand.genes.only=FALSE)
+genai <- unlist(genai)
+genai$ID <- paste(seqnames(genai), start(genai), end(genai), strand(genai), sep="_")
+genai <- unique(genai)
+promai <- promoters(genai, upstream=1000, downstream=0) 
+promai$promID <- paste0(seqnames(promai), "_", start(promai), "_", end(promai), "_", strand(promai))
+
+m <- findOverlaps(promai, dcov, ignore.strand=TRUE, select="all")
+genome_matched <- promai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(dcov[subjectHits(m)]));
+x <- data.frame(genome_matched) %>% as.data.table
+x$IDX <- paste0(x$promID, "-", x$ID)
+fracGene <- x[, lapply(.SD, get_frac), .SDcol=c(meginiai), by="IDX"]
+
+dt <- fracGene %>% 
+  .[, geneID := strsplit(IDX, "-") %>% sapply(., `[`, 2)] %>% 
+  .[, promID := strsplit(IDX, "-") %>% sapply(., `[`, 1)] %>%
+  as.data.table %>%
+  .[, c("promID", "geneID", meginiai), with=FALSE] %>%
+  setnames(., paste0("promai_", names(.))) %>% 
+  .[nchar(promai_geneID) > 1, ]
+
+merge(d, dt, by.x="koord", by.y="promai_geneID") %>% 
+  .[, cluster_stat := as.character(cluster_stat)] %>% 
+  .[, c(paste0("promai_", meginiai), "repDist", "cluster_stat"), with=FALSE] %>% 
+  .[, repStat := "No reps."] %>% 
+  .[repDist <= 1000, repStat := "With reps."] %>%
+  .[, repDist := NULL] %>% 
+  melt(., measure.vars=paste0("promai_", meginiai)) %>% 
+  setnames(., c("cluster", "repStat", "sample", "Fraction")) %>% 
+  .[, sample := gsub("promai_", "", sample)] %>% 
+  .[, status := paste0(repStat, cluster)] %>%
+  .[, status := factor(status, levels=c("With reps.TRUE", "No reps.TRUE", "With reps.FALSE", "No reps.FALSE"), 
+                               labels=c("In cluster", "In cluster", "TE+", "TE-"))] %>%
+  ggplot(., aes(sample, Fraction, color=status)) +
+    geom_boxplot(outlier.size=0.5) +
+    ylab("fraction") 
+```
+
+```{r}
+# Figure S8B. Upstreams modifications in expresed/not expressed genes
+merge(d, dt, by.x="koord", by.y="promai_geneID") %>% 
+  .[, exp_group := "NoExp"] %>% 
+  .[TPM_wt > 0.05, exp_group := "Exp"] %>% 
+  .[,  c(paste0("promai_", meginiai), "exp_group", "cluster_stat"), with=FALSE] %>% 
+  melt(., measure.vars=paste0("promai_", meginiai)) %>% 
+  ggplot(., aes(exp_group, value, color=cluster_stat)) +
+    geom_boxplot() +
+    facet_wrap(~variable)
+```
+
+```{r}
+# Figure S8C.
+add_quantile <- function(x, kieno, kvantiliai=c(0.25, 0.5, 0.75)) {
+  x[, grupe := "Kita"] %>% 
+    .[get(kieno) > 0 & get(kieno) <= kvantiliai[1], grupe := "Q1"] %>% 
+    .[get(kieno) > kvantiliai[1] & get(kieno) <= kvantiliai[2], grupe := "Q2" ] %>% 
+    .[get(kieno) > kvantiliai[2] & get(kieno) <= kvantiliai[3], grupe := "Q3"] %>% 
+    .[get(kieno) > kvantiliai[3], grupe := "Q4"] %>% 
+    .[get(kieno) ==  0, grupe := "Q0"] %>% 
+    .[, grupe := factor(grupe, levels=c("Q0", "Q1", "Q2", "Q3", "Q4"))]
+  return(x)
+}
+
+# when analyzing more samples, this should be adjusted. 
+dd <- merge(d, dt, by.x="koord", by.y="promai_geneID") 
+x1 <- rbind(add_quantile(dd[cluster_stat == "TRUE", c("TPM_wt", paste0("promai_", meginiai[2]), "cluster_stat"), with=FALSE], "promai_LB_k0_fC"), 
+      add_quantile(dd[cluster_stat == "FALSE", c("TPM_wt", paste0("promai_", meginiai[2]), "cluster_stat"), with=FALSE], "promai_LB_k0_fC")) %>%
+      .[, promai_LB_k0_fC := NULL] %>% 
+      as.data.table %>%  
+      .[, meginys := "LB_k0_fC"] %>%  
+      .[, TPM_wt := log2(TPM_wt+1)]
+x2 <- rbind(add_quantile(dd[cluster_stat == "TRUE", c("TPM_wt", paste0("promai_", meginiai[1]), "cluster_stat"), with=FALSE], "promai_LB_k0_hmC"), 
+      add_quantile(dd[cluster_stat == "FALSE", c("TPM_wt", paste0("promai_", meginiai[1]), "cluster_stat"), with=FALSE], "promai_LB_k0_hmC")) %>%
+      .[, promai_LB_k0_hmC := NULL] %>% 
+      as.data.table %>%  
+      .[, meginys := "LB_k0_hmC"] %>%  
+      .[, TPM_wt := log2(TPM_wt+1)]
+
+ggplot(rbind(x1, x2), aes(grupe, TPM_wt, color=cluster_stat)) +
+    geom_boxplot(outlier.size=0.5) +
+    ylab("log2(TPM+1)") +
+    ylim(c(0, 5)) +
+    facet_grid(meginys ~ .) 
+```

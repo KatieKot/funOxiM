@@ -1,0 +1,219 @@
+# INFO 
+
+##Distribution and regulatory roles of oxidized 5-methylcytosines in DNA and RNA of the Basidiomycete fungi Laccaria bicolor and Coprinopsis cinerea 
+
+Janina Ličytė, Kotryna Kvederavičiūtė, Audronė Rukšėnaitė, Eglė Godliauskaitė, Povilas Gibas, Vita Tomkutė, Gražina Petraitytė, Viktoras Masevičius, Saulius Klimašauskas, Edita Kriukienė
+Open Biology (2022), DOI: 10.1098/rsob.20160049
+
+
+```{r, paths2files}
+## Define paths to input files
+# Coverage file: matrix format file with coverages per CpG.
+path2coverage <- "./input/coverage_data.RDS"
+# Genomic freatus gff3 file
+path2GFF3 <- "./input/genome.gff3"
+# path to RNA-seq data results from STRINGTIE.
+path2RNA <- "./input/"
+# RepeatsMasker output gff file
+path2reps <- "./input/reps.out.gff"
+# File with paralogues gene IDs (exact pairs are not indicated) 
+path2paralogs <- "./input/paral.ID"
+# Path to uniq genes file
+path2uniq <- "./input/gene.stat"
+# Path to file with clusters (or any other interesting) regions
+path2clusters <- "./input/cluster_ranges.RDS"
+# Path to mC coverage per CpG data
+path2mC <- "./input/mC.RDS"
+# Path to bismark data
+path2mCmod <- "./input/mC_modification.RDS"
+# Chromosomes to use. LG10 is used as an example.
+chr2use <- "LG10"
+```
+
+```{r, com_func}
+get_TPM <- function(x, y) {
+  tmp <- fread(x) %>% 
+    .[, c("Gene ID", "TPM"), with=FALSE] %>%
+    setnames(., c("geneID", y))
+  return(tmp)
+} 
+f_dowle2 = function(DT) {
+  # remove NA 
+  for (i in names(DT))
+    DT[is.na(get(i)), (i):=0]
+}
+get_frac <- function(x, th=0) {
+  return(sum(x>th)/sum(x>=0))
+}
+get_mod <- function(x, th=0) {
+  return(sum(x)/sum(x>=0))
+}
+```
+
+```{r}
+library(pacman)
+p_load(data.table, dplyr, GenomicRanges,  GenomicFeatures, stringr)
+dir.create(paste0(outdatadir))
+
+data <- readRDS(path2coverage)
+meginiai <- colnames(data)[4:ncol(data)]
+dcov <- data %>% 
+  .[, end := start +1] %>% 
+  makeGRangesFromDataFrame(., keep.extra.column=TRUE)
+
+txdb <- makeTxDbFromGFF(path2GFF3, format="gff3")
+seqlevels(txdb) <- chr2use
+genai <- genes(txdb, single.strand.genes.only=TRUE)
+genai <- unique(genai)
+mcols(genai)$ID <- paste(seqnames(genai), start(genai), end(genai), strand(genai), sep="_")
+
+ID_dalis <- read.csv(path2GFF3, sep="\t", comment.char="#", header=FALSE) %>% 
+  as.data.table() %>%
+  .[V3 == "gene"] %>% 
+  .[, c("V1", "V4", "V5", "V7", "V9"), with=FALSE] %>% 
+  .[, geneID := str_match(V9, "ID=gene_[0-9]*;") %>% gsub("ID=", "", .) %>% gsub(";", "", .)] %>% 
+  .[, proteinID := str_match(V9, "proteinId=[0-9]*;") %>% gsub("proteinId=", "", .) %>% gsub(";", "", .)] %>% 
+  .[, transcriptID := str_match(V9, "transcriptId=[0-9]*") %>% gsub("transcriptId=", "", .) %>% gsub(";", "", .)] %>% 
+  .[, koord := paste0(V1, "_", V4, "_", V5, "_", V7)] %>% 
+  .[, c("geneID", "proteinID", "transcriptID", "koord")] %>% 
+  .[koord %in% mcols(genai)$ID, ] %>% 
+  unique
+
+files <- paste0(path2RNA, c("sample1_RNA.gtf")) 
+
+# If you have more samples, adjust following 
+# code that it would merge all samples into 
+# a common table and/or calculate average or 
+# other statistics. 
+tpmai <- get_TPM(files[1], "wt1") %>% 
+  setnames(., c("geneID", "TPM_wt")) %>%
+  .[, c("TPM_wt", "geneID"), with=FALSE]
+
+# fraction per gene
+m <- findOverlaps(genai, dcov, ignore.strand=FALSE, select="all")
+genome_matched <- genai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(dcov[subjectHits(m)]));
+x <- data.frame(genome_matched) %>% as.data.table
+fracGene <- x[, lapply(.SD, get_frac), .SDcol=c(meginiai), by="ID"]
+setnames(fracGene, paste0("", names(fracGene)))
+colnames(fracGene)[1] <- "koord"
+
+# modification per gene
+m <- findOverlaps(genai, dcov, ignore.strand=FALSE, select="all")
+genome_matched <- genai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(dcov[subjectHits(m)]));
+x <- data.frame(genome_matched) %>% as.data.table
+modGene <- x[, lapply(.SD, get_mod), .SDcol=c(meginiai), by="ID"]
+setnames(modGene, paste0("mod_", names(modGene)))
+colnames(modGene)[1] <- "koord"
+
+# Get TE. Output from RepeatMasker is used. 
+repGFF <- fread(path2reps, skip=3) %>%
+            .[, V2 := NULL] %>% 
+            .[, V3 := NULL] %>% 
+            .[, V6 := NULL] %>% 
+            .[, V8 := NULL] %>% 
+            .[, V1 := gsub("_", "", V1)] %>%
+            .[, family := strsplit(V9, " ") %>% sapply(., `[`, 2) %>% gsub("Motif:", "", .) %>% gsub("\"", "", .) ] %>%
+            .[, ID := paste0(V1, "_", V4, "-", V5)] %>%
+            setnames(., c("chr", "start", "end", "strand", "name", "family", "ID")) %>% 
+            .[chr %in% chr2use] %>%
+            .[grepl("family", family)] %>%
+            .[, c("chr", "start", "end", "strand", "name", "family", "ID"), with=FALSE] %>%
+             makeGRangesFromDataFrame(., keep.extra.column=TRUE)
+
+# get distance to TE
+m <- distanceToNearest(genai, repGFF, ignore.strand=TRUE)
+genome_matched <- genai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(m));
+rep_dist <- data.frame(genome_matched) %>% 
+  as.data.table %>% 
+  .[, `:=` (seqnames=NULL, start=NULL, end=NULL, width=NULL, strand=NULL)] %>% 
+  setnames(., c("gene_id", "koord", "repDist")) 
+
+# multi-copy status
+paralog <- fread(path2paralogs, header=FALSE) %>%
+  .[, c("V3"), with=FALSE] %>%
+  setnames(., c("proteinID")) %>% 
+  .[, proteinID := as.character(proteinID)] %>%
+  .[, paral := "Multi"]
+
+# This one is based on DNA matches (BLAST again)
+uniqunes <- fread(path2uniq) %>% 
+  setnames(., c("proteinID", "gene_name", "uniqness") )
+uniqunes$proteinID <- as.character(uniqunes$proteinID)
+uniqunes <- merge(uniqunes, paralog, all.y=TRUE) %>% 
+  .[is.na(paral), paral:= "Single"]
+
+# clusters status. 
+cluster_ranges <- readRDS(path2clusters)
+
+# if gene is in TE cluster? (If overlaps - it is )
+clusteriai <- countOverlaps(genai, cluster_ranges, maxgap=500) %>% 
+  as.data.table(, keep.rownames=TRUE) %>%
+  setnames(., c("ID", "clusters") ) %>%
+  .[, proteinID:=strsplit(ID, "\\|") %>% sapply(., `[`, 3)] %>% 
+  .[, cluster_stat := clusters > 0] %>%
+  .[, ID := NULL] %>%
+  .[, clusters := NULL]   
+
+# distance to TE cluster
+m <- distanceToNearest(genai, cluster_ranges, ignore.strand=TRUE)
+genome_matched <- genai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(m));
+clust_dist <- data.frame(genome_matched) %>% 
+  as.data.table %>% 
+  .[, `:=` (seqnames=NULL, start=NULL, end=NULL, width=NULL, strand=NULL)] %>% 
+  setnames(., c("gene_id", "koord", "clustDist"))   
+
+# mC data. 
+mC <- readRDS(paste0(path2mC)) 
+# get mC fraction
+m <- findOverlaps(genai, mC, ignore.strand=TRUE, select="all")
+genome_matched <- genai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(mC[subjectHits(m)]));
+x <- data.frame(genome_matched) %>% as.data.table
+fracmC <- x[, lapply(.SD, get_frac), .SDcol="mC", by="ID"]
+setnames(fracmC, paste0("", names(fracmC)))
+colnames(fracmC)[1] <- "koord"
+
+# Normal mC modification per gene. 
+dmC <- readRDS(path2mCmod) 
+m <- findOverlaps(genai, dmC, ignore.strand=TRUE, select="all")
+genome_matched <- genai[queryHits(m)];
+mcols(genome_matched) <- cbind.data.frame(
+    mcols(genome_matched),
+    mcols(dmC[subjectHits(m)]));
+x <- data.frame(genome_matched) %>% as.data.table
+metmC <- x[, lapply(.SD, sum), .SDcol=c("modCG", "nomodCG"), by="ID"] %>% 
+  .[, genemC := modCG/(modCG+nomodCG)] %>% 
+  .[, c("ID", "genemC")]
+colnames(metmC)[1] <- "koord"
+
+d <- ID_dalis %>% 
+  merge(., fracGene, all=TRUE) %>% 
+  merge(., modGene, all=TRUE) %>% 
+  merge(., uniqunes[, c("proteinID", "uniqness", "paral"), with=FALSE], by="proteinID", all=FALSE) %>% 
+  merge(., clusteriai, by="proteinID", all=FALSE) %>% 
+  merge(., tpmai, by="geneID", all=FALSE) %>% 
+  merge(., rep_dist, by.x="koord", by.y="koord", all.x=TRUE) %>% 
+  merge(., clust_dist, by.x="koord", by.y="koord", all.x=TRUE) %>%
+  merge(., fracmC, by="koord", all=TRUE) %>%
+  merge(., metmC, by="koord", all=TRUE) %>% 
+  .[!(is.na(proteinID)), ] %>% 
+  .[(is.na(clustDist)), clustDist := 99999] 
+
+f_dowle2(d)
+
+saveRDS(d, paste0(outdatadir, "gene_matrix.RDS"))
+```
