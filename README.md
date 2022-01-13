@@ -17,6 +17,11 @@ These codes demonstrate how to reproduce most findings from Ličytė et al. pape
 
 If scikick is present on the system, it should be enough to run `sk run` from the project home directory. Alternatively, it is possible to use each code individually and render files manually (in this case output outdatadir variable in R will have to be set manually). 
 
+
 ### Input data 
 
 The main input is the coverage matrix, which represents CG coverages matrix. Data is read in as an RDS file, but it is possible to change this to any other common table format. Besides the coverage matrix, there are several other input files describing different genomic features - see example files for the exact format.
+
+### Final figures
+
+Codes and data to generate figures from the are present in the directory FinalFigures. Each figure has a directory with RMD and RDS files necessary to generate the figure. Figures not generated with R are not included.
