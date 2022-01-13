@@ -199,7 +199,7 @@ colnames(metmC)[1] <- "koord"
 d <- ID_dalis %>% 
   merge(., fracGene, all=TRUE) %>% 
   merge(., modGene, all=TRUE) %>% 
-  merge(., uniqunes[, c("proteinID", "uniqness", "paral"), with=FALSE], by="proteinID", all=FALSE) %>% 
+  merge(., uniqunes[, c("proteinID", "paral"), with=FALSE], by="proteinID", all=FALSE) %>% 
   merge(., clusteriai, by="proteinID", all=FALSE) %>% 
   merge(., tpmai, by="geneID", all=FALSE) %>% 
   merge(., rep_dist, by.x="koord", by.y="koord", all.x=TRUE) %>% 
