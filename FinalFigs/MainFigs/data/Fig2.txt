@@ -1,0 +1,93 @@
+Org	Mod	Vid	Stdev	Fraction	Fig
+CC	5mrC untreated	0.2947	0.0144	total	2B
+CC	5mrC untreated	0.0624	0.014	large polyA-depleted	2B
+CC	5mrC untreated	0.7577	0.1608	small	2B
+CC	5mrC untreated	0.0147	0.0041	polyA	2B
+CC	5mrC vitC 2d	0.2126	0.0038	total	2B
+CC	5mrC vitC 2d	0.1014	0.0247	large polyA-depleted	2B
+CC	5mrC vitC 2d	0.347	0.0242	small	2B
+CC	5mrC vitC 2d	0.2438	0.0069	polyA	2B
+CC	5mrC vitC 5d	0.5456	0.0016	total	2B
+CC	5mrC vitC 5d	0.2376	0.0267	large polyA-depleted	2B
+CC	5mrC vitC 5d	0.8913	0.0379	small	2B
+CC	5mrC vitC 5d	0.0779	0.0074	polyA	2B
+CC	5hmrC untreated	0.00483	0.00015443	total	2B
+CC	5hmrC untreated	0.003256	0.00041069	large polyA-depleted	2B
+CC	5hmrC untreated	0.008851	0.00037132	small	2B
+CC	5hmrC untreated	0	0	polyA	2B
+CC	5hmrC vitC 2d	0.0072	0.0011	total	2B
+CC	5hmrC vitC 2d	0.0057	0.0007	large polyA-depleted	2B
+CC	5hmrC vitC 2d	0.0094	0.0015	small	2B
+CC	5hmrC vitC 2d	0	0	polyA	2B
+CC	5hmrC vitC 5d	0.009773	0.000144572	total	2B
+CC	5hmrC vitC 5d	0.009456	0.004689375	large polyA-depleted	2B
+CC	5hmrC vitC 5d	0.013725	0.000604758	small	2B
+CC	5hmrC vitC 5d	0	0	polyA	2B
+CC	5carC-der untreated	1E-05	3.25014E-06	total	2B
+CC	5carC-der untreated	7E-06	1.82643E-06	large polyA-depleted	2B
+CC	5carC-der untreated	1.6E-05	2.62331E-06	small	2B
+CC	5carC-der untreated	0	0	polyA	2B
+CC	5carC-der vitC 2d	5.1E-05	6.89391E-06	total	2B
+CC	5carC-der vitC 2d	5E-05	8.2989E-06	large polyA-depleted	2B
+CC	5carC-der vitC 2d	1.9E-05	6.45493E-06	small	2B
+CC	5carC-der vitC 2d	0	0	polyA	2B
+CC	5carC-der vitC 5d	3.7E-05	1.24343E-05	total	2B
+CC	5carC-der vitC 5d	3.3E-05	2.22743E-06	large polyA-depleted	2B
+CC	5carC-der vitC 5d	1E-05	6.08318E-06	small	2B
+CC	5carC-der vitC 5d	0	0	polyA	2B
+CC	5mrC untreated	0.0727	0.0047	28S, 18S  rRNA	2C
+CC	5mrC untreated	0.0444	0.0173	5.8S rRNA	2C
+CC	5mrC untreated	0.1	0	5S  rRNA	2C
+CC	5mrC untreated	1.4347	0.0331	tRNA	2C
+CC	5mrC untreated	0.3544	0.0127	<tRNA ≧22 nt	2C
+CC	5mrC untreated	0.3086	0.0694	<22 nt	2C
+CC	5mrC vitC 2d	0.0826	0.0044	28S, 18S  rRNA	2C
+CC	5mrC vitC 2d	0.064	0.0088	5.8S rRNA	2C
+CC	5mrC vitC 2d	0.1112	0.038	5S  rRNA	2C
+CC	5mrC vitC 2d	0.4867	0.1265	tRNA	2C
+CC	5mrC vitC 2d	0.2716	0.0003	<tRNA ≧22 nt	2C
+CC	5mrC vitC 2d	0.3602	0.1598	<22 nt	2C
+CC	5hmrC untreated	0.0009	0	28S, 18S  rRNA	2C
+CC	5hmrC untreated	0.002	0.0006	5.8S rRNA	2C
+CC	5hmrC untreated	0.0118	0.0078	5S  rRNA	2C
+CC	5hmrC untreated	0.0188	0.0011	tRNA	2C
+CC	5hmrC untreated	0.0033	0.0004	<tRNA ≧22 nt	2C
+CC	5hmrC untreated	0.0004	0.0002	<22 nt	2C
+CC	5hmrC vitC 2d	0.0003	0.0001	28S, 18S  rRNA	2C
+CC	5hmrC vitC 2d	0.0036	0.0013	5.8S rRNA	2C
+CC	5hmrC vitC 2d	0.0082	0.0059	5S  rRNA	2C
+CC	5hmrC vitC 2d	0.0256	0.0002	tRNA	2C
+CC	5hmrC vitC 2d	0.0079	0.0015	<tRNA ≧22 nt	2C
+CC	5hmrC vitC 2d	0.0243	0.0164	<22 nt	2C
+CC	5carC-der untreated	0	0	28S, 18S  rRNA	2C
+CC	5carC-der untreated	0	0	5.8S rRNA	2C
+CC	5carC-der untreated	0	0	5S  rRNA	2C
+CC	5carC-der untreated	0	0	tRNA	2C
+CC	5carC-der untreated	8.1E-05	3.21925E-05	<tRNA ≧22 nt	2C
+CC	5carC-der untreated	2.7E-05	0	<22 nt	2C
+CC	5carC-der vitC 2d	0	0	28S, 18S  rRNA	2C
+CC	5carC-der vitC 2d	0	0	5.8S rRNA	2C
+CC	5carC-der vitC 2d	0	0	5S  rRNA	2C
+CC	5carC-der vitC 2d	0	0	tRNA	2C
+CC	5carC-der vitC 2d	0.000139	1.19768E-05	<tRNA ≧22 nt	2C
+CC	5carC-der vitC 2d	0.000193367	0	<22 nt	2C
+LB	5mrC untreated	0.741162	0.020202	total	2D
+LB	5mrC untreated	0	0	large polyA-depleted	2D
+LB	5mrC untreated	0	0	small	2D
+LB	5mrC untreated	0	0	polyA	2D
+LB	5mrC vitC 2d	0.736162	0.046046	total	2D
+LB	5mrC vitC 2d	0.169611	0.000224	large polyA-depleted	2D
+LB	5mrC vitC 2d	1.159406	0.118789	small	2D
+LB	5mrC vitC 2d	0.087239	0.019686	polyA	2D
+LB	5hmrC untreated	0.000696	0.000228	total	2D
+LB	5hmrC untreated	0	0	large polyA-depleted	2D
+LB	5hmrC untreated	0	0	small	2D
+LB	5hmrC untreated	0	0	polyA	2D
+LB	5hmrC vitC 2d	0.009615	0.000776	total	2D
+LB	5hmrC vitC 2d	0.006367	0.001547	large polyA-depleted	2D
+LB	5hmrC vitC 2d	0.012066	0.003412	small	2D
+LB	5hmrC vitC 2d	0.00384	0	polyA	2D
+LB	5carC-der vitC 2d	0.000359	7.57E-05	total	2D
+LB	5carC-der vitC 2d	0.000428	0.000328	large polyA-depleted	2D
+LB	5carC-der vitC 2d	1E-05	0	small	2D
+LB	5carC-der vitC 2d	0.000463	0.000318	polyA	2D

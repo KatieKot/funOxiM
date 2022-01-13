@@ -1,0 +1,268 @@
+```{r}
+
+color_grey_1 <- "grey60"
+color_grey_2 <- "grey75"
+color_grey_3 <- "grey90"
+color_border <- "black"
+outlier_color <- "grey10"
+col_clusters <- c("#E69F00", "#0072b2")
+col_TE <- c("#009E73", "#D55E00")
+col_rep <- c("#56B4E9", "#F0E442")
+col_multi <- c("#E69F00", "#009E73")
+col_elementai = brewer.pal(n = 12, "Paired")[7:12] 
+col_enrich <- c("#F0E442", "#E69F00", "#009E73", "#999999", "#56B4E9", "#0072B2", "#D55E00", "#CC79A7")
+col_nine <- c("#145c34", "#009E73", "#94f2d8", "#003452", "#0072B2", "#56B4E9", "#b08613", "#E69F00", "#f0c975")
+col_clTE <- c("#E69F00", "#009E73", "#D55E00", "#0072b2")
+outlier_shape <- 16
+outlier_size <- 0.2
+font_size_main <- 8
+font_size_gete <- 2.74
+
+library(broom)
+library(cowplot)
+library(data.table)
+library(dplyr)
+library(ggdendro)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(ggsignif)
+library(foreach)
+library(paletteer)
+library(RColorBrewer)
+theme_set(theme_gray()) # Disable cowplot theme
+
+theme_publication <- function(font = font_size_main) {
+  theme(
+    text = element_text(family = "Helvetica", size = font, color = "black"),
+
+    panel.background = element_rect(fill = "transparent", colour = NA),
+    panel.border = element_blank(),
+    plot.background = element_rect(fill = "transparent", colour = NA),
+
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+
+    axis.line = element_line(color = "black"),
+    axis.text = element_text(size = font, color = "black"),
+    axis.ticks = element_line(size = 0.3, color = "black"),
+    axis.title = element_text(size = font, color = "black"),
+
+    strip.background = element_rect(color = "white", fill = "white"),
+    strip.text.x = element_text(size = font, color = "black"),
+    strip.text.y = element_text(size = font, color = "black", angle = 0),
+
+    legend.background = element_rect(
+      fill = alpha("white", 0),
+      color = alpha("white", 0)
+    ),
+    legend.key = element_rect(color = NA, fill = NA),
+    legend.key.size = unit(0.2, "cm"),
+    legend.text = element_text(size = font)
+  )
+}
+
+axis_cat_to_num <- function(data, x1, x2) {
+  foo <- unique(data[, .(get(x1), get(x2))])
+  my_x <- foo$V2 
+  names(my_x) <- foo$V1
+  my_x
+}
+
+scientific_10 <- function(x) {
+  parse(text = gsub("e", " %*% 10^", scales::scientific_format()(x)))
+}
+
+
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+###############################################################################
+# FIG 1
+FIGURE <- list()
+
+
+#######################################
+# 1B - dotplot %G
+#######################################
+
+data <- "../data/Fig1B.txt" %>% 
+  fread() %>%
+  .[, Org2 := factor(ifelse(Org == "LB", "L. bicolor", "C. cinerea"), c("L. bicolor", "C. cinerea"))] %>%
+  .[, Mod := factor(Mod, c("5mC", "5hmC", "5fC", "5caC"))]
+data <- unique(data[, .(Mod)]) %>%
+  .[order(Mod)] %>%
+  .[, X := 1:.N] %>%
+  merge(data, "Mod")
+
+FIGURE[[2]] <- 
+ggplot(data, aes(X, Vid, fill = Org2)) +
+  geom_vline(xintercept = 1:(data[, n_distinct(Mod)] - 1) + 0.5, color = "grey90", linetype = "dotted", size = 0.5) +
+  geom_hline(yintercept = c(1e-3, 1e-1, 1e1), color = "grey90", linetype = "dotted", size = 0.5) +
+  geom_errorbar(
+    aes(ymin = Vid - stdev, ymax = Vid + stdev, group = Org2),
+    position = position_dodge(0.8),
+    color = "grey20", width = 0.5, size = 0.5
+  ) +
+  geom_point(
+    shape = 21, color = "grey20",
+    position = position_dodge(0.8), size = 2
+  ) +
+  scale_fill_manual(values = c("#3182bd", "#deebf7")) +
+  scale_y_log10(labels = scientific_10) +
+  scale_x_continuous(
+    breaks = sort(unique(data$X)),
+    labels = axis_cat_to_num(data, "X", "Mod")
+  ) +
+  labs(
+    x = NULL,
+    y = expression(paste("% of G, log scale")),
+    fill = NULL
+  ) +
+  theme_publication() +
+  theme(
+    axis.ticks.x = element_blank(),
+    legend.position = "none"
+  ) +
+  rotate_x_text(20)
+
+
+
+#######################################
+# 1C - dotplot %G
+#######################################
+
+data <- "../data/Fig1C.txt" %>% 
+  fread() %>%
+  .[, Org2 := factor(ifelse(Org == "LB", "L. bicolor", "C. cinerea"), c("L. bicolor", "C. cinerea"))] %>%
+  .[, Mod := factor(Mod, c("5mrC", "5hmrC", "5frC", "5carC"))] %>%
+  .[!is.na(Vid)]
+data <- unique(data[, .(Mod)]) %>%
+  .[order(Mod)] %>%
+  .[, X := 1:.N] %>%
+  merge(data, "Mod")
+
+FIGURE[[3]] <- 
+ggplot(data, aes(X, Vid, fill = Org2)) +
+  geom_vline(xintercept = 1:(data[, n_distinct(Mod)] - 1) + 0.5, color = "grey90", linetype = "dotted", size = 0.5) +
+  geom_hline(yintercept = c(1e-4, 1e-2, 1e0), color = "grey90", linetype = "dotted", size = 0.5) +
+  geom_errorbar(
+    aes(ymin = Vid - stdev, ymax = Vid + stdev, group = Org2, width = ifelse(X == 3, 0.25, 0.5)),
+    position = position_dodge(0.8),
+    color = "grey20", size = 0.5
+  ) +
+  geom_point(
+    shape = 21, color = "grey20",
+    position = position_dodge(0.8), size = 2
+  ) +
+  scale_fill_manual(values = c("#3182bd", "#deebf7")) +
+  scale_y_log10(labels = scientific_10) +
+  scale_x_continuous(
+    breaks = sort(unique(data$X)),
+    labels = axis_cat_to_num(data, "X", "Mod")
+  ) +
+  labs(
+    x = NULL,
+    y = expression(paste("% of G, log scale")),
+    fill = NULL
+  ) +
+  theme_publication() +
+  theme(
+    axis.ticks.x = element_blank(),
+    legend.position = "none"
+  ) +
+  rotate_x_text(20)
+
+
+#######################################
+# 1D - heatmap
+#######################################
+
+data <- 
+"../data/Fig1D.txt" %>%
+  fread() %>%
+  .[Mol == "DNA" | (Mol == "RNA" & Der == "No" & Vit == "No")] %>% 
+  .[, Org := factor(Org, rev(c("LB", "CC", "Human", "Mouse")))] %>%
+  .[, Name := factor(Name, c("5mC", "5hmC", "5fC", "5caC", "5mrC", "5hmrC", "5frC", "5carC"))]
+FIGURE[[4]] <- 
+ggplot(data, aes(Name, Org)) +
+  geom_tile(
+    aes(fill = log10(Vid)),
+    color = "black"
+  ) +
+  geom_text(
+    aes(label = l),
+    data.frame(Name = c("5frC", "5carC"), Org = "LB", l = c("n.a", "n.d"), Mol = "RNA"),
+    parse = TRUE, family = "Helvetica", size = font_size_gete
+  ) +
+  scale_fill_viridis_c(
+    na.value = NA,
+    breaks = log10(c(0.0001, 0.001, 0.01, 0.1, 1, 5)),
+    labels = c("0.0001", "0.001", "0.01", "0.1", "1", "5"),
+    # name = expression(paste("% of G, ", log[10])),
+    name = "% of C\n(or G)",
+    guide = guide_colorbar(
+      frame.colour = "black", ticks.colour = "black",
+      barwidth = 10
+    )
+  ) +
+  scale_y_discrete(
+    breaks = c("LB", "CC", "Human", "Mouse"),
+    labels = c("L. b.", "C. c.", "", "")
+  ) +
+  facet_wrap(~ Mol, ncol = 2, scales = "free_x") +
+  labs(
+    x = NULL,
+    y = NULL,
+    fill = "% of G"
+  ) +
+  theme_publication() +
+  theme(
+    axis.ticks = element_blank(),
+    axis.line = element_blank(),
+    legend.key.height = unit(0.3, "cm"),
+    legend.position = "bottom",
+    legend.margin = margin(-0.3, 0, 0, -1, unit = "cm")
+  ) +
+  rotate_x_text(20)
+
+
+#######################################
+# LEGEND
+#######################################
+
+p_legend_blue_fungi <- FIGURE[[2]] +
+  theme(
+    legend.position = "bottom",
+    legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+    legend.key.width = unit(0.1, 'cm')
+  ) +
+  guides(fill = guide_legend(override.aes = list(size = 4)))
+p_legend_blue_fungi <- as_ggplot(get_legend(p_legend_blue_fungi))
+
+
+#######################################
+# PLOT
+#######################################
+
+p <- ggdraw() +
+  draw_image("../data/schema1.png", 0.05, 0.18, 0.9, 0.1) +
+  draw_plot(FIGURE[[2]], 0, 0.03, 0.31, 0.12) +
+  draw_plot(FIGURE[[3]], 0.32, 0.03, 0.25, 0.115) +
+  draw_plot(p_legend_blue_fungi, 0.33, -0.03, 0.1, 0.1) +
+  draw_plot(FIGURE[[4]], 0.61, 0, 0.39, 0.17) +
+  draw_image("../data/micelis.svg", 0.59, 0.105, 0.039, 0.039) +
+  draw_image("../data/zmogiukas.svg", 0.62, 0.073, 0.038, 0.038) +
+  draw_image("../data/peliukas.svg", 0.62, 0.051, 0.038, 0.038) +
+  draw_plot_label(
+    family = "Helvetica", size = 16,
+    c("A", "B", "C", "D"),
+    c(0, 0, 0.32, 0.6),
+    c(0.29, 0.17, 0.17, 0.17)
+  )
+ggsave("../fungi_F1.pdf", width = 178, height = 297, units = "mm")
+
+```
+

@@ -1,0 +1,254 @@
+```{r}
+library(pacman)
+p_load(data.table, dplyr, ggplot2, cowplot, viridis, scales, reshape, ggpubr, ggforce, rstatix, RColorBrewer, foreach, EnvStats)
+options(scipen=999)
+highRes <- "../"
+source("../common.R")
+dot_size <- 2
+theme_set(theme_gray())
+
+d <- readRDS("./dataFig3.RDS")
+```
+```{r}
+###############################################################################    
+# Genome structure figure
+# Fig2 B
+###############################################################################    
+
+fig_genome_struct <- d[['B']] %>% 
+   ggplot(., aes(x=type, y=bp*1 / 100, fill=feature)) +
+    geom_bar(stat="identity", key_glyph = rectangle_key_glyph(color = "black", linetype = 1, size = 0.2 )) +
+    scale_fill_manual(values=c("#ececed", "#535458", "#98999d", "#727479", "#c2c2c5","#0f1010" )) +
+    theme_Publication() +
+    scale_y_continuous(labels = scales::percent_format(1)) +
+    labs(y = NULL) + 
+    guides(fill=guide_legend(ncol=1,byrow=TRUE)) +
+    facet_grid(cols=vars(Org)) +
+    theme(axis.title.x = element_blank(), 
+          legend.position = "right", 
+          # legend.direction = "vertical",
+          legend.margin = margin(0, 0, 0, -0.3, unit = "cm"),
+          # legend.margin = margin(0, -0.47, -1, 0, unit = "cm"),
+          legend.title= element_blank(), 
+          axis.text.x = element_text(angle=45, vjust = 1, hjust=1)
+          ) +
+  guides(fill = guide_legend(override.aes = list(shape = 22, size = 3.5, alpha = 1), ncol = 1, byrow = TRUE))
+      
+```
+
+```{r}
+###############################################################################    
+# TET modifications figure
+# Fig2 C
+###############################################################################    
+fig_tetai <- ggplot(d[['C']], aes(expression, fraction, fill=sample)) +
+    geom_boxplot(outlier.shape = 16, outlier.size=0.05, outlier.color = "black", size = 0.1) +
+    ylab("fraction") +
+    theme_Publication() +
+    scale_fill_brewer(palette = "Paired", direction = 1) +
+    guides(fill=guide_legend(title="sample", nrow=3,byrow=FALSE)) +
+    scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+    theme(axis.title.x = element_blank(), 
+          legend.position = "none", 
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          legend.title= element_blank()
+    ) +
+    coord_cartesian(ylim = c(0, 1.1)) +
+    annotate("text", x=-Inf, y=1.05, label=paste0("italic(p-value) <= 0.05"), parse=TRUE, size=2.5, hjust=-0.1, vjust=0)   
+
+```
+
+```{r}
+###############################################################################    
+# Expression vs modification general
+# Fig2 D
+###############################################################################    
+fig_modExp <- ggplot(d[[3]], aes(exp_group, fraction, fill=sample)) +
+    geom_boxplot(outlier.shape = 16, outlier.size=0.05, outlier.color = "black", size = 0.1, key_glyph = rectangle_key_glyph(color = "black", linetype = 1, size = 0.2 )) +
+    theme_Publication() +
+    scale_y_continuous(limits = c(0, 1)) +
+    # labs(
+    #   subtitle = parse(text = paste(italic("p-value"), " <= 0.05"))
+    # ) +
+    scale_y_continuous(breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+    scale_fill_brewer(palette = "Paired") +
+    guides(fill=guide_legend(nrow=3, byrow=FALSE)) +
+    theme(axis.title.x = element_blank(), 
+          legend.position = "none", 
+          legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+          legend.title= element_blank()) +
+    coord_cartesian(ylim = c(0, 1.1)) +
+    annotate("text", x=-Inf, y=1.05, label=paste0("italic(p-value) <= 0.05"), parse=TRUE, size=2.5, hjust=-0.1, vjust=0)   
+
+p_legend_1 <- fig_modExp +
+  theme(
+    legend.position = "bottom",
+    legend.spacing.y = unit(2.0, 'cm'),
+    legend.margin = margin(0, 0, 0, 0, unit = "cm"),
+  ) +
+  guides(fill = guide_legend(override.aes = list(shape = 22, size = 3.5, alpha = 1), nrow = 2, byrow=FALSE))
+p_legend_1 <- as_ggplot(get_legend(p_legend_1))
+
+
+```
+```{r}
+###############################################################################   
+# Enrichment
+# Fig2 A
+###############################################################################   
+
+data.frame(
+  feature = c("genes", "genes, TE+", "genes, TE-")
+)
+d[["A"]][, feature := factor(feature)]
+d[["A"]][, sample := sub("5fC vitC-,\nfC-Seal\n", "5fC vitC-,\nfC-Seal", sample)]
+d[["A"]][, sample := gsub(",", "", sample)]
+d[["A"]][, sample := factor(sample, c("5hmC vitC-\nhMe-Seal", "5fC vitC-\nfC-Seal", "5hmC vitC-\nhmTOP-seq", "5hmC vitC+\nhmTOP-seq", "5fC vitC-\nfoTOP-seq", "5fC vitC+\nfoTOP-seq", "\n5mC \nWGBS\n"  ))]
+
+
+fig_enrichment <- d[['A']]%>% 
+  ggplot(., aes(as.numeric(feature), logOD, shape=sign, fill=sample)) +
+
+    geom_hline(yintercept = 0, color = "red", size=0.2, linetype="dashed") +
+    # geom_vline(yintercept = (c()), color = "red", size=0.2, linetype="dashed") +
+    # geom_vline(xintercept = as.numeric(d[["A"]]$feature) + 0.5, color = "black", size=0.2, linetype="dashed") +
+
+    geom_point(
+      size = 2, alpha = 0.8, shape = 21,
+      position = position_jitter(width=0.3, height=0.0)
+    ) +
+    
+    # geom_vline(xintercept = "genes", color = "black", size = 0.1, linetype = "dashed", vjust = 0.5) +
+    facet_wrap(~organizmas, nrow=2, strip.position="right", scales="free_y") +
+    
+    scale_x_continuous(
+      breaks = sort(unique(as.numeric(d[['A']]$feature))),
+      labels = levels(d[['A']]$feature)
+    )+
+    scale_shape_manual(values=c(13, 16), guide=FALSE) +
+    scale_fill_manual(values=col_enrich) +
+    
+    ylab(bquote('Odds ratio, ' ~log[2])) +   
+    labs(fill = NULL) +
+    theme_Publication() +
+    theme(
+      legend.position = "bottom",
+    legend.margin = margin(-0.6, 0, 0, 0, unit = "cm"),
+      panel.grid.minor.x = element_line(size = 0.2, color = "grey60", linetype = "dashed"), 
+      axis.title.x = element_blank(), 
+      strip.text.y=element_text(face = "italic", angle=90)
+    ) +
+      guides(fill = guide_legend(override.aes = list(color = "black", shape = 21, size = 3.5, alpha = 1), nrow = 1, byrow = TRUE)) +
+    rotate_x_text(30)
+
+```
+
+
+
+```{r}
+#  library(splitstackshape)
+# dat_text <- d[['dat_text']]
+# # dat_text$vardas <- sub("., ", ". ", dat_text$vardas)
+# # d[["E"]]$vardas <- factor(sub("., ", ". ", d[["E"]]$vardas), 
+# fig_mCdeciles <- ggplot(d[['E']], aes(mC, fraction)) +
+#   geom_boxplot(outlier.shape = 16, outlier.size=0.05, outlier.color = "black", size = 0.1, key_glyph = rectangle_key_glyph(color = "black", linetype = 1, size = 0.2 )) +
+#   stat_n_text(angle=90, size=2.3, y.expand.factor = 0.22, hjust = 0) +
+#   facet_grid(cols=vars(vardas)) +
+#   theme_Publication() +
+#   expand_limits(y = c(1, 1.05)) +
+#   xlab("5mCG fraction") +
+#   scale_x_discrete(labels = c("0"="0", "(0-0.1]"="", "(0.1-0.2]"="(0.1-0.2]", "(0.2-0.3]"="", "(0.3-0.4]"="(0.3-0.4]", "(0.4-0.5]"="", "(0.5-0.6]"="(0.5-0.6]", "(0.6-0.7]"="", "(0.7-0.8]"="(0.7-0.8]", "(0.8-0.9]"="", "(0.9-1]"="(0.9-1]") ) + 
+#   scale_y_continuous(breaks=c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
+#   theme(legend.position = "bottom", 
+#         # axis.text.x = element_text(angle=45, vjust = 1, hjust=1),
+#         strip.text=element_text(vjust=0, margin = margin(b=0)),
+#         legend.title= element_blank()) +
+#   geom_text(data    = dat_text,  mapping = aes(x = "0", y = 1.15-0.05, label = r2),            hjust   = -0.1, size    = 2.5, vjust   = 1, parse = TRUE ) +
+#   geom_text(data    = dat_text,  mapping = aes(x = "(0.2-0.3]", y = 1.14-0.05, label =  pval), hjust   = -0.1, size    = 2.5, vjust   = 1, parse = TRUE ) +
+#   geom_text(data    = dat_text,  mapping = aes(x = "(0.6-0.7]", y = 1.13-0.05, label =  sub("...$", "", r)), hjust   = -0.1, size    = 2.5, vjust   = 1, parse = TRUE ) +
+#   rotate_x_text(50)
+
+# q <- ggplot_build(fig_mCdeciles)
+# q$data[[2]]= q$data[[2]] %>% cSplit(., 'label', '=') %>% mutate(label=label_2)
+# fig_mCdeciles_2 <- ggplot_gtable(q)
+
+dat_text <- d[['dat_text']]
+# dat_text$vardas <- sub("., ", ". ", dat_text$vardas)
+# d[["E"]]$vardas <- factor(sub("., ", ". ", d[["E"]]$vardas), 
+
+pd <- merge(d[['E']], d[['E']][, .N, .(mC, vardas)], c("mC", "vardas"))
+fig_mCdeciles_3 <- 
+ggplot(pd, aes(mC, fraction)) +
+  geom_boxplot(
+    # aes(fill = N),
+    outlier.shape = 16, outlier.size = 0.05, outlier.color = "black",
+    size = 0.1, color = "black", fill = "#f0f0f0"
+  ) +
+  stat_n_text(angle=90, size=2.1, y.expand.factor = 0.22, hjust = 0) +
+  facet_grid(cols = vars(vardas)) +
+  theme_Publication() +
+  scale_fill_gradient(
+    low = "#ffeda0", high = "#f03b20", na.value = NA,
+    guide = guide_colorbar(
+      frame.colour = "black", ticks.colour = "black",
+      barwidth = 0.7
+    ), breaks = seq(1e3, 9e4, 2e3)
+
+  ) +
+  scale_y_continuous(breaks=c(0, 0.5, 1), labels = c("0", "0.5", "1")) +
+  scale_x_discrete(labels = c("0"="0", "(0-0.1]"="", "(0.1-0.2]"="(0.1-0.2]", "(0.2-0.3]"="", "(0.3-0.4]"="(0.3-0.4]", "(0.4-0.5]"="", "(0.5-0.6]"="(0.5-0.6]", "(0.6-0.7]"="", "(0.7-0.8]"="(0.7-0.8]", "(0.8-0.9]"="", "(0.9-1]"="(0.9-1]") ) + 
+  labs(
+    x = "5mCG fraction",
+    y = "fraction",
+    fill = "# genes"
+  ) +
+  theme(
+    legend.position = "none", 
+    # strip.text=element_text(vjust=0, margin = margin(b=0)),
+    legend.key.height = unit(0.6, "cm"),
+    legend.margin = margin(0, 0, 0, 0, unit = "cm")
+  ) +
+  rotate_x_text(50) +
+  geom_text(data    = dat_text,  mapping = aes(x = "0", y = 1.15-0.05, label = r2),            hjust   = -0.1, size    = 2.5, vjust   = 1, parse = TRUE ) +
+  geom_text(data    = dat_text,  mapping = aes(x = "(0.2-0.3]", y = 1.14-0.05, label =  pval), hjust   = -0.1, size    = 2.5, vjust   = 1, parse = TRUE ) +
+  geom_text(data    = dat_text,  mapping = aes(x = "(0.6-0.7]", y = 1.13-0.05, label =  sub("...$", "", r)), hjust   = -0.1, size    = 2.5, vjust   = 1, parse = TRUE )
+
+q <- ggplot_build(fig_mCdeciles_3)
+q$data[[2]]= q$data[[2]] %>% cSplit(., 'label', '=') %>% mutate(label=label_2)
+fig_mCdeciles_4 <- ggplot_gtable(q)
+
+```
+
+
+
+
+
+```{r}
+#x11(width=7, height=9)
+p <- ggdraw() + 
+  draw_plot(fig_enrichment, 10/300, 161/300, 280/300, 90/300) +
+
+  draw_plot(fig_genome_struct, 10/300, 86/300, 100/300, 70/300) +
+
+  draw_plot(fig_tetai, 115/300, 98/300, 80/300, 60/300) +
+  draw_plot(fig_modExp, 195/300, 98/300, 100/300, 60/300) +
+
+  draw_plot(fig_mCdeciles_4, 10/300, 0/300, 267/300, 85/300) +
+  draw_plot(p_legend_1, 0.6, 0.265, 0.2, 0.1) +
+  draw_plot_label(
+    family = "Helvetica", size = 16,
+    LETTERS[1:5],
+    c(10/300, 10/300, 115/300, 195/300, 10/300),
+    c(255/300, 165/300, 165/300, 165/300, 82/300))  
+
+
+ggsave(paste0("../Fig3.pdf"),
+  width = 178, height = 220, units = "mm", dpi = 300
+)
+
+
+ 
+```
+
+
+
