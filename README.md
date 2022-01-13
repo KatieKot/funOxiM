@@ -3,12 +3,12 @@ Janina Ličytė, Kotryna Kvederavičiūtė, Audronė Rukšėnaitė, Eglė Godlia
 Open Biology (2022), DOI: 10.1098/rsob.20160049
 
 
-Sample codes to reproduce the analysis. 
+Sample codes to reproduce the analysis results. 
 
 ### Requirements
 
 1. scikick (https://github.com/matthewcarlucci/scikick)  
-2. R (b4.0.3) 
+2. R (v4.0.3) 
 3. Bioconductor (v3.12)
 
 ### Getting Started
@@ -19,4 +19,4 @@ If scikick is present on the system, it should be enough to run `sk run` from th
 
 ### Input data 
 
-Main input is coverage matrix, which represents CG coverages matrix. Data is read in as an RDS file, but is is possible to change this to any other common table format. Besides coverage matrix, there are several other input files describing differen genomic features - see example files for the exact format. 
+The main input is the coverage matrix, which represents CG coverages matrix. Data is read in as an RDS file, but it is possible to change this to any other common table format. Besides the coverage matrix, there are several other input files describing different genomic features - see example files for the exact format.
